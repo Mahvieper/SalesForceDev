@@ -1035,11 +1035,12 @@ function handleSessionExpiry(instanceUrl) {
 async function getSalesforceAuth(instanceUrl) {
     try {
         const url = new URL(instanceUrl);
-        const domains = [
-            url.hostname,
-            '.' + url.hostname,
-            '.' + url.hostname.split('.').slice(-2).join('.')
-        ];
+        const hostname = url.hostname;
+        const parts = hostname.split('.');
+        const domains = [hostname, '.' + hostname];
+        for (let i = 1; i < parts.length; i++) {
+            domains.push('.' + parts.slice(i).join('.'));
+        }
         for (const domain of domains) {
             const cookies = await chrome.cookies.getAll({ domain });
             const sidCookie = cookies.find(c => c.name === 'sid') || cookies.find(c => c.name.startsWith('sid_'));

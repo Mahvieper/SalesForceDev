@@ -80,11 +80,12 @@ async function connectToSalesforce() {
 async function getSalesforceAuth(instanceUrl) {
     try {
         const url = new URL(instanceUrl);
-        const domains = [
-            url.hostname,
-            '.' + url.hostname,
-            '.' + url.hostname.split('.').slice(-2).join('.'),
-        ];
+        const hostname = url.hostname;
+        const parts = hostname.split('.');
+        const domains = [hostname, '.' + hostname];
+        for (let i = 1; i < parts.length; i++) {
+            domains.push('.' + parts.slice(i).join('.'));
+        }
 
         for (const domain of domains) {
             const cookies = await chrome.cookies.getAll({ domain });
@@ -105,26 +106,35 @@ async function getSalesforceAuth(instanceUrl) {
 }
 
 async function discoverFromCookies() {
-    const baseDomains = ['salesforce.com', 'force.com', 'cloudforce.com', 'visualforce.com'];
+    const baseDomains = ['salesforce.com', 'my.salesforce.com', 'sandbox.my.salesforce.com', 'force.com', 'my.force.com', 'cloudforce.com', 'visualforce.com', 'my.visualforce.com'];
     for (const baseDomain of baseDomains) {
         try {
             const cookies = await chrome.cookies.getAll({ domain: '.' + baseDomain });
             const sidCookie = cookies.find(c => c.name === 'sid') ||
                               cookies.find(c => c.name.startsWith('sid_'));
             if (sidCookie) {
-                const domain = sidCookie.domain.startsWith('.')
-                    ? sidCookie.domain.slice(1)
-                    : sidCookie.domain;
-                return {
-                    instanceUrl: 'https://' + domain,
-                    accessToken: sidCookie.value
-                };
+                return { accessToken: sidCookie.value };
             }
         } catch (e) {
             continue;
         }
     }
     return null;
+}
+
+async function detectInstanceFromTab() {
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
+        if (!tab?.url) return null;
+        const url = new URL(tab.url);
+        const hostname = url.hostname;
+        const sfPatterns = [/\.salesforce\.com$/, /\.force\.com$/, /\.cloudforce\.com$/, /\.visualforce\.com$/];
+        if (sfPatterns.some(p => p.test(hostname))) return `https://${hostname}`;
+        return null;
+    } catch (e) {
+        return null;
+    }
 }
 
 async function loadSavedConnection() {
@@ -137,6 +147,7 @@ async function loadSavedConnection() {
             try {
                 await salesforceAPI.getUsers();
                 showDashboard(data.instanceUrl);
+                return;
             } catch (error) {
                 if (isSessionExpired(error)) {
                     const authData = await getSalesforceAuth(data.instanceUrl);
@@ -155,26 +166,37 @@ async function loadSavedConnection() {
                             if (!isSessionExpired(retryError)) throw retryError;
                         }
                     }
-                    showSessionExpiredPrompt(data.instanceUrl);
                 } else {
                     throw error;
                 }
             }
-        } else {
-            const discovered = await discoverFromCookies();
-            if (discovered) {
-                instanceUrlInput.value = discovered.instanceUrl;
-                const authData = await getSalesforceAuth(discovered.instanceUrl);
+            // Stored credentials are stale — clear them
+            chrome.storage.local.remove(['instanceUrl', 'accessToken', 'authMethod']);
+            salesforceAPI = null;
+            instanceUrlInput.value = '';
+        }
+
+        // Auto-detect instance URL from current tab
+        const tabUrl = await detectInstanceFromTab();
+        if (tabUrl) instanceUrlInput.value = tabUrl;
+
+        // Try auto-discovery from cookies
+        const discovered = await discoverFromCookies();
+        if (discovered) {
+            const existingUrl = instanceUrlInput.value.trim();
+            if (existingUrl) {
+                const authData = await getSalesforceAuth(existingUrl);
                 if (authData) {
-                    salesforceAPI = new SalesforceAPI(discovered.instanceUrl, authData.accessToken);
+                    salesforceAPI = new SalesforceAPI(existingUrl, authData.accessToken);
                     try {
                         await salesforceAPI.getUsers();
                         await chrome.storage.local.set({
-                            instanceUrl: discovered.instanceUrl,
+                            instanceUrl: existingUrl,
                             accessToken: authData.accessToken,
                             authMethod: authData.method
                         });
-                        showDashboard(discovered.instanceUrl);
+                        showDashboard(existingUrl);
+                        return;
                     } catch (error) {
                         console.error('Auto-connect failed:', error);
                     }

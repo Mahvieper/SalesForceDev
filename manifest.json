@@ -6,13 +6,18 @@
   "permissions": [
     "storage",
     "cookies",
-    "identity"
+    "identity",
+    "activeTab"
   ],
   "host_permissions": [
     "https://*.salesforce.com/*",
+    "https://*.my.salesforce.com/*",
+    "https://*.sandbox.my.salesforce.com/*",
     "https://*.force.com/*",
+    "https://*.my.force.com/*",
     "https://*.cloudforce.com/*",
-    "https://*.visualforce.com/*"
+    "https://*.visualforce.com/*",
+    "https://*.my.visualforce.com/*"
   ],
   "action": {
     "default_popup": "popup.html"
