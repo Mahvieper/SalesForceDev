@@ -5,8 +5,8 @@
 }
 
 body {
-    width: 900px;
-    min-height: 600px;
+    width: 400px;
+    min-height: 200px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     background: #f4f6f9;
     color: #333;
@@ -27,7 +27,7 @@ body {
 }
 
 .header h1 {
-    font-size: 24px;
+    font-size: 20px;
     color: #00A1E0;
 }
 
@@ -75,11 +75,6 @@ body {
     flex: 1;
 }
 
-.input-field.small {
-    width: 150px;
-    flex: none;
-}
-
 /* Buttons */
 .btn {
     padding: 8px 16px;
@@ -88,6 +83,12 @@ body {
     cursor: pointer;
     font-size: 14px;
     transition: all 0.3s;
+}
+
+.btn-large {
+    padding: 12px 24px;
+    font-size: 16px;
+    width: 100%;
 }
 
 .btn-primary {
@@ -109,177 +110,42 @@ body {
 }
 
 .btn-small {
-    padding: 4px 8px;
+    padding: 6px 12px;
     font-size: 12px;
-}
-
-/* Filters Container */
-.filters-container {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-}
-
-.filters-container h3 {
-    margin-bottom: 15px;
-    color: #555;
-}
-
-.filter-row {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.filter-group {
-    flex: 1;
-}
-
-.filter-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 12px;
-    color: #666;
-    font-weight: 500;
-}
-
-.date-range {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.date-range span {
-    color: #666;
-}
-
-.quick-date-filters {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-/* Results Container */
-.results-container {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.results-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.badge {
-    background: #00A1E0;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-}
-
-/* Table */
-.table-container {
-    overflow-x: auto;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-#auditLogTable {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-}
-
-#auditLogTable th {
-    background: #f8f9fa;
-    padding: 10px;
-    text-align: left;
-    border-bottom: 2px solid #dee2e6;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-#auditLogTable td {
-    padding: 10px;
-    border-bottom: 1px solid #dee2e6;
-}
-
-#auditLogTable tr:hover {
-    background: #f8f9fa;
-}
-
-.status-success {
-    color: #4CAF50;
-    font-weight: 500;
-}
-
-.status-failure {
-    color: #f44336;
-    font-weight: 500;
-}
-
-/* Loading */
-.loading {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 20px;
-    justify-content: center;
-}
-
-.spinner {
-    width: 20px;
-    height: 20px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #00A1E0;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* No Results */
-.no-results {
-    text-align: center;
-    padding: 40px;
-    color: #666;
-}
-
-/* Pagination */
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-#pageInfo {
-    font-size: 14px;
-    color: #666;
 }
 
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Dashboard Section (simplified) */
+.dashboard-section {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.connected-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.instance-label {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: -8px;
+}
+
+.instance-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    word-break: break-all;
 }
 
 /* Auth Modal Styles */

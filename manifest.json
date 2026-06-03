@@ -5,9 +5,7 @@
   "description": "View and filter Salesforce Audit Logs with comprehensive filtering options",
   "permissions": [
     "storage",
-    "activeTab",
     "cookies",
-    "scripting",
     "identity"
   ],
   "host_permissions": [

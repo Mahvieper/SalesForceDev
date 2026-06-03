@@ -163,37 +163,6 @@ function handleSessionExpiry(instanceUrl) {
 
 async function getSalesforceAuth(instanceUrl) {
     try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const currentTab = tabs[0];
-        if (currentTab.url && currentTab.url.includes('force.com')) {
-            const results = await chrome.scripting.executeScript({
-                target: { tabId: currentTab.id },
-                func: () => {
-                    function getCookie(name) {
-                        const match = document.cookie.match(new RegExp('(?:^|;)\\s*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*=\\s*([^;]+)'));
-                        return match ? match[1] : null;
-                    }
-                    if (window.__sfdcSessionId) return window.__sfdcSessionId;
-                    try { const sid = getCookie('sid'); if (sid) return sid; } catch (e) {}
-                    try {
-                        const sd = localStorage.getItem('sfdc_session');
-                        if (sd) { const s = JSON.parse(sd); return s.sessionId || s.accessToken; }
-                    } catch (e) {}
-                    if (typeof sforce !== 'undefined' && sforce.connection && sforce.connection.sessionId) return sforce.connection.sessionId;
-                    if (window.sfdcSessionId) return window.sfdcSessionId;
-                    try { if (typeof Sfdc !== 'undefined' && Sfdc.session) return Sfdc.session.id || Sfdc.session.sessionId; } catch (e) {}
-                    try { if (typeof $A !== 'undefined' && $A.util && $A.util.getSessionId) return $A.util.getSessionId(); } catch (e) {}
-                    return null;
-                }
-            });
-            if (results && results[0] && results[0].result) {
-                return { accessToken: results[0].result, method: 'page-extraction' };
-            }
-        }
-    } catch (error) {
-        console.log('Could not extract from page:', error);
-    }
-    try {
         const url = new URL(instanceUrl);
         const domains = [
             url.hostname,
