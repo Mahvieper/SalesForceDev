@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce Audit Log Dashboard</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Audit Log Dashboard</h1>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Connection Section -->
+        <div class="connection-section" id="connectionSection">
+            <div class="input-group">
+                <input type="text" id="instanceUrl" placeholder="https://your-instance.salesforce.com" class="input-field">
+                <button id="connectBtn" class="btn btn-primary">Connect</button>
+            </div>
+            <div class="auto-detect">
+                <button id="autoDetectBtn" class="btn btn-secondary">Auto-Detect from Current Tab</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div class="dashboard-section" id="dashboardSection" style="display: none;">
+            <!-- Filters -->
+            <div class="filters-container">
+                <h3>Filters</h3>
+                
+                <!-- Search and Date Filters -->
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Search</label>
+                        <input type="text" id="searchFilter" placeholder="Search by name, user..." class="input-field">
+                    </div>
+                    <div class="filter-group">
+                        <label>Date Range</label>
+                        <div class="date-range">
+                            <input type="date" id="startDate" class="input-field">
+                            <span>to</span>
+                            <input type="date" id="endDate" class="input-field">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Date Filters -->
+                <div class="quick-date-filters">
+                    <button class="btn btn-small" data-period="today">Today</button>
+                    <button class="btn btn-small" data-period="yesterday">Yesterday</button>
+                    <button class="btn btn-small" data-period="7days">Last 7 Days</button>
+                    <button class="btn btn-small" data-period="30days">Last 30 Days</button>
+                    <button class="btn btn-small" data-period="thisMonth">This Month</button>
+                </div>
+
+                <!-- Advanced Filters -->
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>User</label>
+                        <select id="userFilter" class="input-field">
+                            <option value="">All Users</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="statusFilter" class="input-field">
+                            <option value="">All Statuses</option>
+                            <option value="Success">Success</option>
+                            <option value="Failure">Failure</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="applyFiltersBtn" class="btn btn-primary">Apply Filters</button>
+                    <button id="resetFiltersBtn" class="btn btn-secondary">Reset</button>
+                    <button id="exportCSVBtn" class="btn btn-secondary">Export CSV</button>
+                    <button id="openDashboardBtn" class="btn btn-secondary">Open Dashboard ↗</button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-container">
+                <div class="results-header">
+                    <h3>Audit Logs <span id="recordCount" class="badge">0</span></h3>
+                    <div class="results-controls">
+                        <select id="pageSizeFilter" class="input-field small">
+                            <option value="10">10 per page</option>
+                            <option value="25">25 per page</option>
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loadingIndicator" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>Loading audit logs...</span>
+                </div>
+
+                <!-- Audit Logs Table -->
+                <div class="table-container">
+                    <table id="auditLogTable">
+                        <thead id="auditLogHead">
+                            <!-- Dynamic headers -->
+                        </thead>
+                        <tbody id="auditLogBody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- No Results -->
+                <div id="noResults" class="no-results" style="display: none;">
+                    <p>No audit logs found matching your criteria</p>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <button id="prevPage" class="btn btn-small" disabled>← Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPage" class="btn btn-small" disabled>Next →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils/salesforce-api.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

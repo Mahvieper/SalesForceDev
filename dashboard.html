@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce Audit Log Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --sidebar-w: 280px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --blue-50: #EFF6FF;
+            --blue-100: #DBEAFE;
+            --blue-200: #BFDBFE;
+            --blue-500: #3B82F6;
+            --blue-600: #2563EB;
+            --blue-700: #1D4ED8;
+            --blue-800: #1E40AF;
+            --slate-50: #F8FAFC;
+            --slate-100: #F1F5F9;
+            --slate-200: #E2E8F0;
+            --slate-300: #CBD5E1;
+            --slate-400: #94A3B8;
+            --slate-500: #64748B;
+            --slate-600: #475569;
+            --slate-700: #334155;
+            --slate-800: #1E293B;
+            --slate-900: #0F172A;
+            --green-500: #22C55E;
+            --green-600: #16A34A;
+            --purple-500: #8B5CF6;
+            --amber-500: #F59E0B;
+            --rose-500: #F43F5E;
+            --indigo-500: #6366F1;
+            --card-bg: #FFFFFF;
+            --card-border: rgba(148, 163, 184, 0.15);
+            --card-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+            --card-radius: 20px;
+            --transition: 200ms ease;
+        }
+
+        html, body {
+            font-family: var(--font);
+            background: var(--slate-50);
+            color: var(--slate-800);
+            height: 100%;
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: #fff;
+            border-right: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            padding: 24px 16px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 50;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px;
+            margin-bottom: 32px;
+        }
+
+        .logo-square {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--blue-600), var(--blue-500));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .logo-square svg {
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: #fff;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--slate-900);
+            letter-spacing: -0.3px;
+        }
+
+        .logo-text span {
+            color: var(--blue-600);
+        }
+
+        .nav-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--slate-400);
+            padding: 0 12px;
+            margin-bottom: 8px;
+            margin-top: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 16px;
+            color: var(--slate-500);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all var(--transition);
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: var(--slate-50);
+            color: var(--slate-700);
+        }
+
+        .nav-item.active {
+            background: var(--blue-50);
+            color: var(--blue-700);
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .nav-item .badge-count {
+            margin-left: auto;
+            background: var(--blue-100);
+            color: var(--blue-700);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: var(--card-border);
+            margin: 16px 12px;
+        }
+
+        .help-card {
+            background: var(--slate-50);
+            border-radius: 16px;
+            padding: 16px;
+            margin: 0 4px 16px 4px;
+            border: 1px solid var(--card-border);
+        }
+
+        .help-card h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--slate-700);
+            margin-bottom: 4px;
+        }
+
+        .help-card p {
+            font-size: 12px;
+            color: var(--slate-500);
+            margin-bottom: 10px;
+        }
+
+        .help-card a {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--blue-600);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .help-card a:hover {
+            text-decoration: underline;
+        }
+
+        .help-card a svg {
+            width: 12px;
+            height: 12px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 16px;
+            margin: 0 4px;
+            transition: background var(--transition);
+            cursor: default;
+        }
+
+        .user-card:hover {
+            background: var(--slate-50);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--blue-500), var(--indigo-500));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .user-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--green-500);
+            border: 2px solid #fff;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+        }
+
+        .user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-info .name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--slate-800);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-info .role {
+            font-size: 11px;
+            color: var(--slate-500);
+            font-weight: 500;
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main {
+            flex: 1;
+            margin-left: var(--sidebar-w);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ========== HEADER ========== */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 28px 40px 20px 40px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-left h1 {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--slate-900);
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--blue-100);
+            color: var(--blue-600);
+            flex-shrink: 0;
+        }
+
+        .verified-badge svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .connection-status-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--slate-50);
+            border: 1px solid var(--card-border);
+            border-radius: 100px;
+            padding: 6px 14px 6px 10px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green-500);
+            box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+        }
+
+        .connection-dot.disconnected {
+            background: var(--slate-300);
+            box-shadow: none;
+        }
+
+        .org-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--slate-50);
+            border: 1px solid var(--card-border);
+            border-radius: 100px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: var(--slate-500);
+            max-width: 320px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .org-pill svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            stroke: var(--slate-400);
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .btn-ghost-pill {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            border-radius: 100px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--blue-600);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: var(--font);
+        }
+
+        .btn-ghost-pill:hover {
+            background: var(--blue-50);
+            border-color: var(--blue-200);
+        }
+
+        /* ========== CONTENT ========== */
+        .content {
+            padding: 0 40px 40px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            flex: 1;
+        }
+
+        /* ========== CARD ========== */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--card-border);
+            padding: 24px;
+            transition: all var(--transition);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--blue-50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--blue-600);
+        }
+
+        .card-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .card-title-group h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--slate-800);
+            letter-spacing: -0.2px;
+        }
+
+        .card-title-group .subtitle {
+            font-size: 13px;
+            color: var(--slate-500);
+            margin-top: 2px;
+        }
+
+        .card-title-group .title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 20px;
+            background: var(--blue-100);
+            color: var(--blue-700);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .card-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-icon-square {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--slate-400);
+            transition: all var(--transition);
+        }
+
+        .btn-icon-square:hover {
+            background: var(--slate-50);
+            color: var(--slate-600);
+        }
+
+        .btn-icon-square svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .btn-icon-square.active {
+            background: var(--blue-50);
+            color: var(--blue-600);
+            border-color: var(--blue-200);
+        }
+
+        /* ========== FILTERS ========== */
+        .filter-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--slate-500);
+            margin-bottom: 6px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--slate-400);
+            pointer-events: none;
+        }
+
+        .input-wrapper .input-icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .input-wrapper .input-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--slate-400);
+            padding: 2px;
+            display: none;
+        }
+
+        .input-wrapper .input-clear:hover {
+            color: var(--slate-600);
+        }
+
+        .input-wrapper .input-clear svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            font-size: 14px;
+            font-family: var(--font);
+            color: var(--slate-800);
+            background: #fff;
+            transition: all var(--transition);
+            outline: none;
+        }
+
+        .input-field:focus {
+            border-color: var(--blue-500);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .input-field.with-icon {
+            padding-left: 38px;
+        }
+
+        .input-field.with-clear {
+            padding-right: 36px;
+        }
+
+        .input-field::placeholder {
+            color: var(--slate-400);
+        }
+
+        select.input-field {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        .date-range-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-range-group .date-sep {
+            color: var(--slate-400);
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .date-range-group input[type="date"] {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .quick-chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .chip {
+            padding: 5px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--slate-100);
+            color: var(--slate-600);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: var(--font);
+        }
+
+        .chip:hover {
+            background: var(--slate-200);
+        }
+
+        .chip.active {
+            background: var(--blue-600);
+            color: #fff;
+        }
+
+        .chip.active:hover {
+            background: var(--blue-700);
+        }
+
+        .actions-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 20px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: var(--font);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--blue-600), var(--blue-500));
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--slate-50);
+            color: var(--slate-600);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--slate-100);
+            border-color: var(--slate-200);
+        }
+
+        /* ========== TABLE ========== */
+        .table-container {
+            overflow-x: auto;
+            margin: 0 -24px;
+            padding: 0 24px;
+        }
+
+        .table-wrapper {
+            min-width: 900px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        thead th {
+            background: var(--slate-50);
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--slate-500);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            white-space: nowrap;
+        }
+
+        thead th:first-child {
+            border-radius: 12px 0 0 0;
+        }
+
+        thead th:last-child {
+            border-radius: 0 12px 0 0;
+        }
+
+        tbody tr {
+            transition: all var(--transition);
+        }
+
+        tbody tr:hover {
+            background: var(--slate-50);
+        }
+
+        tbody td {
+            padding: 16px;
+            border-bottom: 1px solid var(--slate-100);
+            font-size: 13px;
+            color: var(--slate-700);
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Date cell */
+        .date-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .activity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green-500);
+            flex-shrink: 0;
+        }
+
+        .date-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .date-text .date {
+            font-weight: 600;
+            color: var(--slate-800);
+            font-size: 13px;
+        }
+
+        .date-text .time {
+            font-size: 12px;
+            color: var(--slate-400);
+            font-weight: 400;
+        }
+
+        /* User cell */
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar-sm {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--blue-500), var(--indigo-500));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 600;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .user-cell .name {
+            font-weight: 500;
+            color: var(--slate-700);
+        }
+
+        /* Section cell */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .tag-blue {
+            background: var(--blue-50);
+            color: var(--blue-700);
+        }
+
+        .tag-green {
+            background: #ECFDF5;
+            color: #059669;
+        }
+
+        .tag-purple {
+            background: #F5F3FF;
+            color: #7C3AED;
+        }
+
+        .tag-amber {
+            background: #FFFBEB;
+            color: #D97706;
+        }
+
+        /* Action cell */
+        .action-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-cell .action-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            background: var(--purple-50, #F5F3FF);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--purple-500);
+            flex-shrink: 0;
+        }
+
+        .action-cell .action-icon svg {
+            width: 12px;
+            height: 12px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .action-cell .action-text {
+            font-size: 12px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: var(--slate-600);
+            word-break: break-all;
+        }
+
+        /* Details cell */
+        .details-cell {
+            max-width: 260px;
+        }
+
+        .details-cell p {
+            font-size: 13px;
+            color: var(--slate-600);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Delegate cell */
+        .delegate-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .delegate-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: #ECFDF5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #059669;
+            font-weight: 600;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .delegate-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .delegate-info .delegate-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--slate-700);
+        }
+
+        .delegate-info .delegate-email {
+            font-size: 11px;
+            color: var(--slate-400);
+        }
+
+        /* Actions menu cell */
+        .btn-menu {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--slate-400);
+            transition: all var(--transition);
+        }
+
+        .btn-menu:hover {
+            background: var(--slate-50);
+            color: var(--slate-600);
+        }
+
+        .btn-menu svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ========== FOOTER ========== */
+        .table-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 16px;
+            margin-top: 4px;
+            border-top: 1px solid var(--card-border);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .table-footer .info-text {
+            font-size: 13px;
+            color: var(--slate-500);
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-page {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--slate-600);
+            font-family: var(--font);
+            transition: all var(--transition);
+        }
+
+        .btn-page:hover:not(:disabled) {
+            background: var(--slate-50);
+            border-color: var(--slate-200);
+        }
+
+        .btn-page:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-page.active {
+            background: var(--blue-600);
+            color: #fff;
+            border-color: var(--blue-600);
+        }
+
+        .btn-page.active:hover {
+            background: var(--blue-700);
+        }
+
+        .btn-page svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ========== LOADING ========== */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 48px;
+            color: var(--slate-500);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--slate-200);
+            border-top-color: var(--blue-500);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--slate-500);
+        }
+
+        .no-results svg {
+            width: 48px;
+            height: 48px;
+            stroke: var(--slate-300);
+            fill: none;
+            stroke-width: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .no-results h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--slate-700);
+            margin-bottom: 4px;
+        }
+
+        .no-results p {
+            font-size: 14px;
+        }
+
+        .disconnected-msg {
+            text-align: center;
+            padding: 80px 24px;
+        }
+
+        .disconnected-msg h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--slate-800);
+            margin-bottom: 8px;
+        }
+
+        .disconnected-msg p {
+            font-size: 15px;
+            color: var(--slate-500);
+            margin-bottom: 24px;
+        }
+
+        /* ========== SCROLLBAR ========== */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--slate-200);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--slate-300);
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 1200px) {
+            .header-left h1 { font-size: 24px; }
+            .header { padding: 24px 24px 16px 24px; }
+            .content { padding: 0 24px 24px 24px; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 64px;
+                padding: 16px 8px;
+            }
+            .sidebar .logo-text,
+            .sidebar .nav-label,
+            .sidebar .nav-item span,
+            .sidebar .badge-count,
+            .sidebar .help-card,
+            .sidebar .user-card .user-info,
+            .sidebar .user-card .user-status-dot {
+                display: none;
+            }
+            .sidebar .nav-item {
+                justify-content: center;
+                padding: 10px;
+                border-radius: 12px;
+            }
+            .sidebar .user-card {
+                justify-content: center;
+                padding: 8px;
+            }
+            .sidebar .user-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+            .main {
+                margin-left: 64px;
+            }
+            .header-left h1 { font-size: 20px; }
+            .header { padding: 16px 16px 12px 16px; }
+            .content { padding: 0 16px 16px 16px; }
+            .filter-row { flex-direction: column; }
+            .filter-group { min-width: auto; }
+            .org-pill { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-square">
+                    <svg viewBox="0 0 24 24"><path d="M6 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6"/><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg>
+                </div>
+                <div class="logo-text">Audit<span>View</span></div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label">Main Menu</div>
+                <a class="nav-item active" data-page="dashboard">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a class="nav-item" data-page="audit-logs">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Audit Logs</span>
+                    <span class="badge-count" id="sidebarCount">0</span>
+                </a>
+                <a class="nav-item" data-page="users">
+                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>Users</span>
+                </a>
+                <a class="nav-item" data-page="reports">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <span>Reports</span>
+                </a>
+                <a class="nav-item" data-page="settings">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span>Settings</span>
+                </a>
+            </div>
+
+            <div class="help-card">
+                <h4>Need Help?</h4>
+                <p>View documentation and API reference for SetupAuditTrail.</p>
+                <a href="#" onclick="return false">View docs
+                    <svg viewBox="0 0 24 24"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+                </a>
+            </div>
+
+            <div class="user-card">
+                <div class="user-avatar">
+                    MT
+                    <span class="user-status-dot"></span>
+                </div>
+                <div class="user-info">
+                    <div class="name" id="sidebarUserName">Mahesh Test</div>
+                    <div class="role" id="sidebarUserRole">Admin</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <div class="main" id="mainContent">
+            <!-- HEADER -->
+            <header class="header">
+                <div class="header-left">
+                    <h1>Salesforce Audit Log Dashboard</h1>
+                    <span class="verified-badge">
+                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                </div>
+                <div class="header-right">
+                    <div class="connection-status-card">
+                        <span class="connection-dot" id="statusDot"></span>
+                        <span id="statusText">Connected</span>
+                    </div>
+                    <div class="org-pill" id="orgPill">
+                        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        <span id="orgUrl"></span>
+                    </div>
+                    <button class="btn-ghost-pill" id="reconnectBtn">Change Connection</button>
+                </div>
+            </header>
+
+            <!-- CONTENT -->
+            <div class="content">
+                <!-- FILTERS CARD -->
+                <div class="card" id="filtersCard">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-icon">
+                                <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                            </div>
+                            <div class="card-title-group">
+                                <h2>Filters</h2>
+                                <div class="subtitle">Narrow down your audit logs with powerful filters</div>
+                            </div>
+                        </div>
+                        <div class="card-header-right">
+                            <button class="btn-icon-square" id="collapseFiltersBtn">
+                                <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="filtersBody">
+                        <div class="filter-row">
+                            <div class="filter-group" style="flex: 1.5;">
+                                <label>Search</label>
+                                <div class="input-wrapper">
+                                    <span class="input-icon">
+                                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    </span>
+                                    <input type="text" id="searchFilter" class="input-field with-icon with-clear" placeholder="Search audit logs...">
+                                    <button class="input-clear" id="searchClearBtn">
+                                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <label>Date Range</label>
+                                <div class="date-range-group">
+                                    <input type="date" id="startDate" class="input-field">
+                                    <span class="date-sep">—</span>
+                                    <input type="date" id="endDate" class="input-field">
+                                </div>
+                                <div class="quick-chips">
+                                    <button class="chip active" data-period="today">Today</button>
+                                    <button class="chip" data-period="yesterday">Yesterday</button>
+                                    <button class="chip" data-period="7days">Last 7 Days</button>
+                                    <button class="chip" data-period="30days">Last 30 Days</button>
+                                    <button class="chip" data-period="thisMonth">This Month</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>User</label>
+                                <select id="userFilter" class="input-field">
+                                    <option value="">All Users</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Status</label>
+                                <select id="statusFilter" class="input-field">
+                                    <option value="">All Statuses</option>
+                                    <option value="Success">Success</option>
+                                    <option value="Failure">Failure</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Per Page</label>
+                                <select id="pageSizeFilter" class="input-field">
+                                    <option value="10">10</option>
+                                    <option value="25" selected>25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="actions-row">
+                            <button class="btn btn-primary" id="applyFiltersBtn">
+                                <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                Apply Filters
+                            </button>
+                            <button class="btn btn-secondary" id="resetFiltersBtn">
+                                <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                Reset
+                            </button>
+                            <button class="btn btn-secondary" id="exportCSVBtn">
+                                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Export CSV
+                            </button>
+                            <button class="btn btn-secondary" id="refreshBtn">
+                                <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AUDIT LOGS CARD -->
+                <div class="card" style="flex:1;">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-icon">
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            </div>
+                            <div class="card-title-group">
+                                <div class="title-row">
+                                    <h2>Audit Logs</h2>
+                                    <span class="count-badge" id="recordCount">0</span>
+                                </div>
+                                <div class="subtitle">View and track all audit events in your Salesforce org</div>
+                            </div>
+                        </div>
+                        <div class="card-header-right">
+                            <div class="input-wrapper" style="width: 200px;">
+                                <span class="input-icon">
+                                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                </span>
+                                <input type="text" class="input-field with-icon" placeholder="Search in results..." id="tableSearch" style="padding: 8px 14px 8px 36px; border-radius: 100px; font-size: 13px;">
+                            </div>
+                            <button class="btn-icon-square active" id="listViewBtn" title="List view">
+                                <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                            </button>
+                            <button class="btn-icon-square" id="gridViewBtn" title="Grid view">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="loading" id="loadingIndicator" style="display:none;">
+                        <div class="spinner"></div>
+                        <span>Loading audit logs...</span>
+                    </div>
+
+                    <div class="no-results" id="noResults" style="display:none;">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <h4>No results found</h4>
+                        <p>No audit logs match your current filter criteria.</p>
+                    </div>
+
+                    <div class="disconnected-msg" id="disconnectedMsg" style="display:none;">
+                        <h2>Not Connected</h2>
+                        <p>Open the extension popup to connect your Salesforce org.</p>
+                        <button class="btn btn-primary" onclick="chrome.tabs.create({url:chrome.runtime.getURL('popup.html')})">
+                            Open Extension Popup
+                        </button>
+                    </div>
+
+                    <div id="tableSection">
+                        <div class="table-container">
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date / Time</th>
+                                            <th>User</th>
+                                            <th>Section</th>
+                                            <th>Action</th>
+                                            <th>Details</th>
+                                            <th>Delegate User</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditLogBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="table-footer">
+                            <span class="info-text" id="paginationInfo">Showing 0 of 0 results</span>
+                            <div class="pagination">
+                                <button class="btn-page" id="prevPage" disabled>
+                                    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                                <button class="btn-page" id="nextPage" disabled>
+                                    <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils/salesforce-api.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

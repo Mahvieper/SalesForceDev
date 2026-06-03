@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Salesforce Audit Log Dashboard",
+  "version": "1.0.0",
+  "description": "View and filter Salesforce Audit Logs with comprehensive filtering options",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "cookies",
+    "scripting",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://*.salesforce.com/*",
+    "https://*.force.com/*",
+    "https://*.cloudforce.com/*",
+    "https://*.visualforce.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
