@@ -3,12 +3,24 @@ let currentInstanceUrl = '';
 
 const connectionSection = document.getElementById('connectionSection');
 const dashboardSection = document.getElementById('dashboardSection');
+const loadingSection = document.getElementById('loadingSection');
+const loadingText = document.getElementById('loadingText');
 const connectionStatus = document.getElementById('connectionStatus');
 const instanceUrlInput = document.getElementById('instanceUrl');
 const connectBtn = document.getElementById('connectBtn');
 const openDashboardBtn = document.getElementById('openDashboardBtn');
 const disconnectBtn = document.getElementById('disconnectBtn');
 const connectedInstance = document.getElementById('connectedInstance');
+
+function showLoading(text) {
+    loadingText.textContent = text || 'Connecting...';
+    connectionSection.style.display = 'none';
+    dashboardSection.style.display = 'none';
+    loadingSection.style.display = 'block';
+}
+function hideLoading() {
+    loadingSection.style.display = 'none';
+}
 
 function isSessionExpired(error) {
     return error?.status === 401 || error?.code === 'INVALID_SESSION_ID';
@@ -42,19 +54,25 @@ async function connectToSalesforce() {
         return;
     }
 
+    showLoading('Authenticating...');
+
     try {
         const authData = await getSalesforceAuth(instanceUrl);
 
         if (!authData) {
+            hideLoading();
             showManualAuthOption(instanceUrl);
             return;
         }
 
         salesforceAPI = new SalesforceAPI(instanceUrl, authData.accessToken);
 
+        loadingText.textContent = 'Verifying session...';
+
         try {
             await salesforceAPI.getUsers();
         } catch (error) {
+            hideLoading();
             if (isSessionExpired(error)) {
                 showSessionExpiredPrompt(instanceUrl);
                 return;
@@ -70,9 +88,11 @@ async function connectToSalesforce() {
             authMethod: authData.method
         });
 
+        hideLoading();
         showDashboard(instanceUrl);
     } catch (error) {
         console.error('Connection error:', error);
+        hideLoading();
         showManualAuthOption(instanceUrl);
     }
 }
@@ -144,12 +164,15 @@ async function loadSavedConnection() {
         if (data.instanceUrl && data.accessToken) {
             instanceUrlInput.value = data.instanceUrl;
             salesforceAPI = new SalesforceAPI(data.instanceUrl, data.accessToken);
+            showLoading('Connecting...');
             try {
                 await salesforceAPI.getUsers();
+                hideLoading();
                 showDashboard(data.instanceUrl);
                 return;
             } catch (error) {
                 if (isSessionExpired(error)) {
+                    loadingText.textContent = 'Refreshing session...';
                     const authData = await getSalesforceAuth(data.instanceUrl);
                     if (authData) {
                         salesforceAPI = new SalesforceAPI(data.instanceUrl, authData.accessToken);
@@ -160,6 +183,7 @@ async function loadSavedConnection() {
                                 accessToken: authData.accessToken,
                                 authMethod: authData.method
                             });
+                            hideLoading();
                             showDashboard(data.instanceUrl);
                             return;
                         } catch (retryError) {
@@ -171,6 +195,7 @@ async function loadSavedConnection() {
                 }
             }
             // Stored credentials are stale — clear them
+            hideLoading();
             chrome.storage.local.remove(['instanceUrl', 'accessToken', 'authMethod']);
             salesforceAPI = null;
             instanceUrlInput.value = '';
@@ -185,6 +210,7 @@ async function loadSavedConnection() {
         if (discovered) {
             const existingUrl = instanceUrlInput.value.trim();
             if (existingUrl) {
+                showLoading('Connecting...');
                 const authData = await getSalesforceAuth(existingUrl);
                 if (authData) {
                     salesforceAPI = new SalesforceAPI(existingUrl, authData.accessToken);
@@ -195,10 +221,12 @@ async function loadSavedConnection() {
                             accessToken: authData.accessToken,
                             authMethod: authData.method
                         });
+                        hideLoading();
                         showDashboard(existingUrl);
                         return;
                     } catch (error) {
                         console.error('Auto-connect failed:', error);
+                        hideLoading();
                     }
                 }
             }
