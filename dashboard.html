@@ -201,6 +201,30 @@
 
         .filter-group select { cursor: pointer; }
 
+        .searchable-select { position: relative; }
+        .searchable-select input { width: 100%; box-sizing: border-box; cursor: text; }
+        .searchable-options {
+            display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+            max-height: 350px; overflow-y: auto; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 6px; margin-top: 2px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .searchable-options.show { display: block; }
+        .searchable-options .opt {
+            padding: 5px 10px; font-size: 13px; cursor: pointer; transition: background 0.1s;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .searchable-options .opt:hover, .searchable-options .opt.highlight {
+            background: var(--primary); color: #fff;
+        }
+        .searchable-options .opt[data-value=""] {
+            color: var(--text-muted); border-bottom: 1px solid var(--border); margin-bottom: 2px;
+        }
+        .searchable-options .opt[data-value=""]:hover, .searchable-options .opt[data-value=""].highlight {
+            color: #fff; background: var(--primary);
+        }
+        .searchable-options .opt .opt-profile { font-size: 11px; opacity: 0.6; margin-left: 6px; }
+
         .filter-actions { display: flex; gap: 6px; align-items: end; }
 
         .btn {
@@ -596,9 +620,11 @@
                             </div>
                             <div class="filter-group">
                                 <label>User</label>
-                                <select id="userFilter">
-                                    <option value="">All Users</option>
-                                </select>
+                                <div class="searchable-select" id="userFilterContainer">
+                                    <input type="text" id="userFilterSearch" placeholder="Search users..." autocomplete="nope" name="usrsearch">
+                                    <input type="hidden" id="userFilter" value="">
+                                    <div class="searchable-options" id="userFilterOptions"></div>
+                                </div>
                             </div>
                             <div class="filter-group">
                                 <label>Search</label>

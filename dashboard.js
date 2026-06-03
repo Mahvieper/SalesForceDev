@@ -269,6 +269,8 @@ const severityFilter = document.getElementById('severityFilter');
 const categoryFilter = document.getElementById('categoryFilter');
 const typeFilter = document.getElementById('typeFilter');
 const userFilter = document.getElementById('userFilter');
+const userFilterSearch = document.getElementById('userFilterSearch');
+const userFilterOptions = document.getElementById('userFilterOptions');
 const startDate = document.getElementById('startDate');
 const endDate = document.getElementById('endDate');
 const noiseFilter = document.getElementById('noiseFilter');
@@ -981,12 +983,88 @@ function updatePagination(total) {
     nextPage.disabled = currentPage >= totalPages;
 }
 
+let userFilterIndex = -1;
+let userSearchInitialized = false;
+
+function renderUserOptions(filter) {
+    const q = (filter || '').toLowerCase();
+    const filtered = q ? users.filter(u => u.Name.toLowerCase().includes(q)) : users;
+    userFilterOptions.innerHTML =
+        `<div class="opt" data-value="">All Users (${users.length} total)</div>` +
+        filtered.map(u => `<div class="opt" data-value="${u.Id}"><span>${u.Name}</span> <span class="opt-profile">${u.Profile?.Name || ''}</span></div>`).join('');
+    userFilterIndex = -1;
+}
+
+function selectUser(value, label) {
+    userFilter.value = value || '';
+    userFilterSearch.value = value ? label : '';
+    userFilterOptions.classList.remove('show');
+}
+
+function initUserSearch() {
+    if (userSearchInitialized) return;
+    userSearchInitialized = true;
+    userFilterSearch.addEventListener('input', () => {
+        renderUserOptions(userFilterSearch.value);
+        userFilterOptions.classList.add('show');
+        userFilterIndex = -1;
+    });
+
+    userFilterSearch.addEventListener('focus', () => {
+        if (users.length) {
+            renderUserOptions(userFilterSearch.value);
+            userFilterOptions.classList.add('show');
+        }
+    });
+
+    userFilterOptions.addEventListener('mousedown', e => {
+        const opt = e.target.closest('.opt');
+        if (!opt) return;
+        selectUser(opt.dataset.value, opt.textContent);
+    });
+
+    userFilterOptions.addEventListener('mouseover', e => {
+        const opt = e.target.closest('.opt');
+        if (!opt) return;
+        userFilterOptions.querySelectorAll('.opt').forEach(o => o.classList.remove('highlight'));
+        opt.classList.add('highlight');
+    });
+
+    userFilterSearch.addEventListener('keydown', e => {
+        const opts = userFilterOptions.querySelectorAll('.opt');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            userFilterIndex = Math.min(userFilterIndex + 1, opts.length - 1);
+            opts.forEach((o, i) => o.classList.toggle('highlight', i === userFilterIndex));
+            if (opts[userFilterIndex]) opts[userFilterIndex].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            userFilterIndex = Math.max(userFilterIndex - 1, 0);
+            opts.forEach((o, i) => o.classList.toggle('highlight', i === userFilterIndex));
+            if (opts[userFilterIndex]) opts[userFilterIndex].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (opts[userFilterIndex]) {
+                selectUser(opts[userFilterIndex].dataset.value, opts[userFilterIndex].textContent);
+            }
+        } else if (e.key === 'Escape') {
+            userFilterOptions.classList.remove('show');
+        }
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#userFilterContainer')) {
+            userFilterOptions.classList.remove('show');
+        }
+    });
+}
+
 async function loadUsers() {
     if (!salesforceAPI) return;
     try {
         users = await salesforceAPI.getUsers();
-        userFilter.innerHTML = '<option value="">All Users</option>' +
-            users.map(u => `<option value="${u.Id}">${u.Name}</option>`).join('');
+        renderUserOptions('');
+        initUserSearch();
     } catch (error) {
         console.error('Error loading users:', error);
         if (isSessionExpired(error)) handleSessionExpiry();
@@ -1188,6 +1266,7 @@ function resetFilterValues() {
     categoryFilter.value = '';
     typeFilter.value = '';
     userFilter.value = '';
+    userFilterSearch.value = '';
     searchFilter.value = '';
     startDate.value = '';
     endDate.value = '';

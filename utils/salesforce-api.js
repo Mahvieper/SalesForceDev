@@ -1,5 +1,5 @@
 const SETUP_AUDIT_FIELDS = {
-    always: ['Id', 'CreatedDate', 'CreatedBy.Name', 'Section', 'Action', 'Display'],
+    always: ['Id', 'CreatedDate', 'CreatedById', 'CreatedBy.Name', 'Section', 'Action', 'Display'],
     optional: ['DelegateUser', 'Status'],
     filters: {
         userId: 'CreatedById',
@@ -135,7 +135,7 @@ class SalesforceAPI {
     }
 
     async getUsers() {
-        const queryString = `SELECT Id, Name, Email FROM User WHERE IsActive = true ORDER BY Name`;
+        const queryString = `SELECT Id, Name, Email, Profile.Name FROM User WHERE IsActive = true AND IsPortalEnabled = false ORDER BY Name`;
         
         try {
             const result = await this.query(queryString);
