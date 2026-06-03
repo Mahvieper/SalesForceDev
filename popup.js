@@ -11,6 +11,7 @@ const connectBtn = document.getElementById('connectBtn');
 const openDashboardBtn = document.getElementById('openDashboardBtn');
 const disconnectBtn = document.getElementById('disconnectBtn');
 const connectedInstance = document.getElementById('connectedInstance');
+const hintMessage = document.getElementById('hintMessage');
 
 function showLoading(text) {
     loadingText.textContent = text || 'Connecting...';
@@ -231,6 +232,12 @@ async function loadSavedConnection() {
                 }
             }
         }
+
+        // If we ended up here without connecting, check if we should show hint
+        if (!salesforceAPI) {
+            const tabIsSF = !!(await detectInstanceFromTab());
+            hintMessage.style.display = tabIsSF ? 'none' : 'block';
+        }
     } catch (error) {
         console.error('Error loading saved connection:', error);
     }
@@ -240,6 +247,7 @@ function showDashboard(instanceUrl) {
     currentInstanceUrl = instanceUrl;
     connectionSection.style.display = 'none';
     dashboardSection.style.display = 'block';
+    hintMessage.style.display = 'none';
     connectedInstance.textContent = instanceUrl;
     updateConnectionStatus(true);
 }

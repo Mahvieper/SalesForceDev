@@ -72,6 +72,13 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 #loadingText { font-size: 14px; color: #666; }
 
+/* Hint Message */
+.hint {
+    text-align: center; padding: 10px; font-size: 13px; color: #888;
+    background: #f8f9fa; border-radius: 6px; border: 1px dashed #ddd;
+}
+.hint span::before { content: '→ '; }
+
 /* Connection Section */
 .connection-section {
     background: white;
