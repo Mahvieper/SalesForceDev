@@ -338,6 +338,7 @@ async function init() {
     }
 
     setupStaticEventListeners();
+    loadTheme();
 }
 
 function getActionInfo(actionName) {
@@ -685,6 +686,184 @@ function generateInsights(records) {
     return insights;
 }
 
+function analyzeForAttacks(records) {
+    const incidents = [];
+    const byUser = groupByUser(records);
+
+    // 1. Privilege Escalation: profile change + permission set assign in same session
+    for (const { name, items } of byUser) {
+        const profileChanges = items.filter(r =>
+            r.Action?.toLowerCase().includes('profile') && !r.Action?.toLowerCase().includes('fls')
+        );
+        const permSetAssigns = items.filter(r =>
+            r.Action === 'PermSetAssign' || r.Action === 'PermSetGroupAssign'
+        );
+        const loginAs = items.filter(r =>
+            r.Action?.toLowerCase().includes('suorgadminlogin') ||
+            r.Action?.toLowerCase().includes('suloginaccessused')
+        );
+        const userActivations = items.filter(r =>
+            r.Action === 'activateduser' || r.Action === 'deactivateduser'
+        );
+        const passwordResets = items.filter(r =>
+            r.Action === 'resetpassword' || r.Action === 'changedpassword'
+        );
+        const permEscalations = items.filter(r =>
+            r.Action === 'PermSetEnableUserPerm' ||
+            r.Action === 'PermSetEntityPermChanged'
+        );
+
+        // Account Takeover: activation + password reset + permission escalation + login-as
+        if (userActivations.length > 0 && passwordResets.length > 0 && loginAs.length > 0) {
+            const times = items.map(r => new Date(r.CreatedDate).getTime()).sort();
+            if (times.length > 1 && (times[times.length - 1] - times[0]) < 3600000) {
+                incidents.push({
+                    type: 'account-takeover',
+                    severity: 'critical',
+                    title: 'Potential Account Takeover',
+                    user: name,
+                    details: `${userActivations.length} activation(s), ${passwordResets.length} password reset(s), ${loginAs.length} Login-As event(s) in under 1 hour`,
+                    score: 95,
+                    indicators: [
+                        `${userActivations.length} user activation(s)`,
+                        `${passwordResets.length} password reset(s)`,
+                        `${loginAs.length} Login-As event(s)`,
+                        `${permEscalations.length} permission escalation(s)`
+                    ]
+                });
+            }
+        }
+
+        // Privilege Escalation: profile changes + permission set assigns
+        if (profileChanges.length > 0 && permSetAssigns.length > 0) {
+            incidents.push({
+                type: 'privilege-escalation',
+                severity: 'critical',
+                title: 'Privilege Escalation Activity',
+                user: name,
+                details: `${profileChanges.length} profile change(s) + ${permSetAssigns.length} permission set assignment(s)`,
+                score: 88,
+                indicators: [
+                    `${profileChanges.length} profile change(s)`,
+                    `${permSetAssigns.length} permission set assign(s)`
+                ]
+            });
+        }
+
+        // Lateral Movement: login-as followed by user/admin changes
+        if (loginAs.length > 0 && (profileChanges.length > 0 || permSetAssigns.length > 0)) {
+            incidents.push({
+                type: 'lateral-movement',
+                severity: 'critical',
+                title: 'Suspicious Lateral Movement',
+                user: name,
+                details: `${loginAs.length} Login-As event(s) followed by admin changes`,
+                score: 82,
+                indicators: [
+                    `${loginAs.length} Login-As event(s)`,
+                    `${profileChanges.length} profile change(s)`,
+                    `${permSetAssigns.length} permission set assign(s)`
+                ]
+            });
+        }
+    }
+
+    // 2. Insider Threat: bulk permission changes + export-like actions
+    const bulkPermChanges = records.filter(r =>
+        (r.Action === 'PermSetAssign' || r.Action === 'PermSetGroupAssign') &&
+        (r.Display || '').toLowerCase().includes('multiple')
+    );
+    if (bulkPermChanges.length > 3) {
+        const users = [...new Set(bulkPermChanges.map(r => r.CreatedBy?.Name))].join(', ');
+        incidents.push({
+            type: 'insider-threat',
+            severity: 'critical',
+            title: 'Potential Insider Threat - Bulk Permission Grants',
+            user: users,
+            details: `${bulkPermChanges.length} bulk permission grants detected`,
+            score: 90,
+            indicators: [`${bulkPermChanges.length} bulk permission grants`, `By: ${users}`]
+        });
+    }
+
+    // 3. Defense Evasion: sharing rule changes + public link creation
+    const sharingChanges = records.filter(r =>
+        r.Action?.toLowerCase().includes('sharing') ||
+        (r.Section || '').toLowerCase().includes('sharing')
+    );
+    if (sharingChanges.length > 2) {
+        incidents.push({
+            type: 'defense-evasion',
+            severity: 'warning',
+            title: 'Sharing Rule Changes Detected',
+            user: '',
+            details: `${sharingChanges.length} sharing or public access changes`,
+            score: 65,
+            indicators: [`${sharingChanges.length} sharing rule change(s)`]
+        });
+    }
+
+    // 4. Reconnaissance: failed logins spike
+    const failedLogins = records.filter(r =>
+        (r.Action || '').toLowerCase().includes('login') &&
+        (r.Status || '').toLowerCase() === 'failure'
+    );
+    if (failedLogins.length > 5) {
+        const users = [...new Set(failedLogins.map(r => r.CreatedBy?.Name))].join(', ');
+        incidents.push({
+            type: 'reconnaissance',
+            severity: 'warning',
+            title: 'High Volume of Failed Logins',
+            user: users,
+            details: `${failedLogins.length} failed login attempts - possible brute force`,
+            score: 70,
+            indicators: [`${failedLogins.length} failed login(s)`, `By: ${users}`]
+        });
+    }
+
+    // 5. Security Policy Weakening
+    const policyWeaken = records.filter(r =>
+        r.Action === 'disableRequireLoginFromOrgDomain' ||
+        r.Action === 'disableAPILoginRequiresOrgDomain' ||
+        r.Action === 'restrictEmailDomainsEnabledOnOff' ||
+        r.Action === 'adminApprovedAppsOnlyOnOff' ||
+        r.Action === 'mFADirectUILoginOptInOnOff' ||
+        r.Action === 'obscuresecretanswerdisable'
+    );
+    if (policyWeaken.length > 0) {
+        incidents.push({
+            type: 'policy-weakening',
+            severity: 'critical',
+            title: 'Security Policy Weakened',
+            user: policyWeaken.map(r => r.CreatedBy?.Name).filter(Boolean).join(', '),
+            details: `${policyWeaken.length} security control(s) disabled or weakened`,
+            score: 85,
+            indicators: policyWeaken.map(r => r._humanAction)
+        });
+    }
+
+    // 6. Connected App / Auth Provider Changes
+    const authChanges = records.filter(r =>
+        r.Action?.toLowerCase().includes('connectedapp') ||
+        r.Action?.toLowerCase().includes('authprovider') ||
+        r.Action?.toLowerCase().includes('saml')
+    );
+    if (authChanges.length > 1) {
+        const users = [...new Set(authChanges.map(r => r.CreatedBy?.Name))].join(', ');
+        incidents.push({
+            type: 'identity-compromise',
+            severity: 'critical',
+            title: 'Identity/Auth Configuration Changes',
+            user: users,
+            details: `${authChanges.length} identity provider or connected app changes`,
+            score: 80,
+            indicators: authChanges.map(r => r._humanAction)
+        });
+    }
+
+    return incidents.sort((a, b) => b.score - a.score);
+}
+
 function updateCards(records) {
     const critical = records.filter(r => r._severity === 'critical');
     const failed = records.filter(r => (r.Status || '').toLowerCase() === 'failure');
@@ -712,10 +891,22 @@ function updateCards(records) {
 
 function updateInsights(records) {
     const insights = generateInsights(records);
-    aiInsights.innerHTML = insights.map(i =>
+    const incidents = analyzeForAttacks(records);
+    const all = [...insights];
+    incidents.forEach(inc => {
+        all.push({
+            text: `[INCIDENT ${inc.type.toUpperCase()}] ${inc.title}: ${inc.details}`,
+            severity: inc.severity
+        });
+    });
+    aiInsights.innerHTML = all.map(i =>
         `<div class="ai-insight">${i.text}<span class="tag ${i.severity === 'critical' ? 'critical-bg' : i.severity === 'warning' ? 'warning-bg' : ''}">${i.severity}</span></div>`
     ).join('');
-    document.getElementById('aiCount').textContent = insights.filter(i => i.severity !== 'info').length;
+    const totalAlerts = incidents.length + insights.filter(i => i.severity !== 'info').length;
+    document.getElementById('aiCount').textContent = totalAlerts;
+    const smallCount = document.getElementById('aiCountSmall');
+    if (smallCount) smallCount.textContent = totalAlerts;
+    window._lastIncidents = incidents;
 }
 
 async function loadEvents() {
@@ -739,6 +930,7 @@ async function loadEvents() {
         renderCurrentView();
         updateCards(allRecords);
         updateInsights(allRecords);
+        populateSavedViews();
     } catch (error) {
         console.error('Error loading events:', error);
         if (isSessionExpired(error)) {
@@ -870,6 +1062,25 @@ function renderDetail(r, diff) {
         <span class="detail-meta-item"><strong>Type:</strong> ${r._class.type || 'N/A'}</span>
         <span class="detail-meta-item"><strong>Severity:</strong> ${r._severity}</span>
         <span class="detail-meta-item"><strong>Time:</strong> ${r.CreatedDate || 'N/A'}</span>
+    </div>
+    ${renderBlastRadius(r)}`;
+}
+
+function renderBlastRadius(r) {
+    const blast = calculateBlastRadius(r);
+    if (!blast) return '';
+    const impactColor = blast.impact === 'High' ? 'var(--critical)' : blast.impact === 'Medium' ? 'var(--warning)' : 'var(--info)';
+    return `<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);">Blast Radius</span>
+            <span style="font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;background:${impactColor}20;color:${impactColor};">${blast.impact} Impact</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span>Type: <strong>${blast.type}</strong></span>
+            <span>Target: <strong>${blast.target}</strong></span>
+            <span>Affected Users: <strong>${blast.affectedUsers}</strong></span>
+            <span>Potential Impact: <strong style="color:${impactColor};">${blast.impact}</strong></span>
+        </div>
     </div>`;
 }
 
@@ -1187,6 +1398,27 @@ function setupEventListeners() {
         const total = applyClientFilters(allRecords).length;
         if (currentPage * RECORDS_PER_PAGE < total) { currentPage++; renderCurrentView(); }
     });
+
+    // Saved Views
+    document.getElementById('saveViewBtn').addEventListener('click', async () => {
+        const name = prompt('Enter a name for this view:');
+        if (name && name.trim()) {
+            const ok = await saveCurrentView(name.trim());
+            if (ok) {
+                await populateSavedViews();
+            } else {
+                alert('Failed to save view');
+            }
+        }
+    });
+
+    document.getElementById('loadViewSelect').addEventListener('change', async (e) => {
+        const name = e.target.value;
+        if (name) {
+            await loadSavedView(name);
+            e.target.value = '';
+        }
+    });
 }
 
 function setupStaticEventListeners() {
@@ -1194,9 +1426,96 @@ function setupStaticEventListeners() {
         chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
     });
 
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+
+    const aiHeader = document.getElementById('aiHeader');
+    if (aiHeader) {
+        aiHeader.addEventListener('click', () => {
+            const panel = document.getElementById('aiPanel');
+            panel.classList.toggle('collapsed');
+            chrome.storage.local.set({ aiPanelCollapsed: panel.classList.contains('collapsed') });
+        });
+        // Restore collapsed state
+        chrome.storage.local.get(['aiPanelCollapsed'], (data) => {
+            if (data.aiPanelCollapsed) document.getElementById('aiPanel').classList.add('collapsed');
+        });
+    }
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') sidePanel.classList.remove('open');
+
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            const views = ['timeline', 'by-user', 'by-object', 'by-permission', 'by-deployment'];
+            const num = parseInt(e.key);
+            if (num >= 1 && num <= 5) {
+                e.preventDefault();
+                const view = views[num - 1];
+                if (view && document.querySelector(`[data-view="${view}"]`)) {
+                    document.querySelectorAll('.inv-tab, .nav-item').forEach(el => el.classList.remove('active'));
+                    activeView = view;
+                    document.querySelector(`.inv-tab[data-view="${view}"]`)?.classList.add('active');
+                    document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+                    currentPage = 1;
+                    renderCurrentView();
+                }
+            }
+        }
+
+        if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+            if (!e.target.closest('input, textarea, select')) {
+                e.preventDefault();
+                loadEvents();
+            }
+        }
+
+        if ((e.key === 'f' && (e.ctrlKey || e.metaKey))) {
+            if (!e.target.closest('input, textarea')) {
+                e.preventDefault();
+                searchFilter.focus();
+            }
+        }
+
+        if (e.key === 'n' && !e.ctrlKey && !e.metaKey) {
+            if (!e.target.closest('input, textarea, select')) {
+                e.preventDefault();
+                noiseFilter.checked = !noiseFilter.checked;
+                currentPage = 1;
+                renderCurrentView();
+            }
+        }
     });
+}
+
+async function loadTheme() {
+    try {
+        const { theme } = await chrome.storage.local.get(['theme']);
+        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            updateThemeIcons(true);
+        }
+    } catch (e) {}
+}
+
+function updateThemeIcons(isDark) {
+    const sun = document.querySelector('.sun-icon');
+    const moon = document.querySelector('.moon-icon');
+    if (sun && moon) {
+        sun.style.display = isDark ? 'none' : 'block';
+        moon.style.display = isDark ? 'block' : 'none';
+    }
+}
+
+async function toggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTheme = isDark ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    updateThemeIcons(!isDark);
+    try {
+        await chrome.storage.local.set({ theme: newTheme });
+    } catch (e) {}
 }
 
 function applyPreset(preset) {
@@ -1308,14 +1627,102 @@ function invByUser(name) {
     sidePanel.classList.add('open');
     panelTitle.textContent = `User: ${name}`;
     const records = applyClientFilters(allRecords).filter(r => r.CreatedBy?.Name === name);
-    panelBody.innerHTML = `<div class="panel-section">
-        <h4>Summary</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
-            <div class="detail-section"><div style="font-size:24px;font-weight:700;color:var(--critical);">${records.filter(r => r._severity === 'critical').length}</div><div style="font-size:11px;color:var(--text-muted);">Critical</div></div>
-            <div class="detail-section"><div style="font-size:24px;font-weight:700;color:var(--warning);">${records.filter(r => r._severity === 'warning').length}</div><div style="font-size:11px;color:var(--text-muted);">Warning</div></div>
-            <div class="detail-section"><div style="font-size:24px;font-weight:700;color:var(--primary);">${records.length}</div><div style="font-size:11px;color:var(--text-muted);">Total Events</div></div>
+
+    // Calculate trust score
+    const criticalCount = records.filter(r => r._severity === 'critical').length;
+    const warningCount = records.filter(r => r._severity === 'warning').length;
+    const failedCount = records.filter(r => (r.Status || '').toLowerCase() === 'failure').length;
+    const permChangeCount = records.filter(r => r._class.category === 'permission').length;
+    const loginAsCount = records.filter(r =>
+        (r.Action || '').toLowerCase().includes('suorgadminlogin') ||
+        (r.Action || '').toLowerCase().includes('suloginaccessused')
+    ).length;
+
+    let trustScore = 100;
+    trustScore -= criticalCount * 5;
+    trustScore -= warningCount * 2;
+    trustScore -= failedCount * 3;
+    trustScore -= permChangeCount * 1;
+    trustScore -= loginAsCount * 10;
+    trustScore = Math.max(0, Math.min(100, trustScore));
+
+    const trustColor = trustScore >= 80 ? 'var(--success)' : trustScore >= 50 ? 'var(--warning)' : 'var(--critical)';
+
+    // Activity by day
+    const dayCounts = [0,0,0,0,0,0,0];
+    records.forEach(r => {
+        const d = new Date(r.CreatedDate);
+        dayCounts[d.getDay()]++;
+    });
+    const maxDay = Math.max(...dayCounts, 1);
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const activityBars = dayNames.map((n, i) =>
+        `<div style="display:flex;align-items:center;gap:4px;font-size:11px;">
+            <span style="width:22px;color:var(--text-muted);">${n}</span>
+            <div style="flex:1;height:12px;background:var(--bg);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:${(dayCounts[i]/maxDay*100)}%;background:${trustColor};border-radius:3px;transition:width 0.3s;"></div>
+            </div>
+            <span style="width:24px;text-align:right;color:var(--text-muted);font-weight:600;">${dayCounts[i]}</span>
+        </div>`
+    ).join('');
+
+    // Risk factors
+    const riskFactors = [];
+    if (criticalCount > 5) riskFactors.push(`High critical event count (${criticalCount})`);
+    if (loginAsCount > 0) riskFactors.push(`Login-As activity (${loginAsCount} events)`);
+    if (failedCount > 3) riskFactors.push(`Multiple failed operations (${failedCount})`);
+    if (permChangeCount > 10) riskFactors.push(`Extensive permission changes (${permChangeCount})`);
+    if (records.some(r => r.DelegateUser)) riskFactors.push('Impersonated sessions detected');
+    if (records.some(r => r.Action === 'PermSetEnableUserPerm')) riskFactors.push('Enabled elevated user permissions');
+
+    // User info from records
+    const sample = records.find(r => r.CreatedBy?.Name === name);
+    const userInfo = sample?.CreatedBy || {};
+
+    panelBody.innerHTML = `
+    <div class="panel-section">
+        <h4>Trust Score</h4>
+        <div style="display:flex;align-items:center;gap:16px;padding:12px;background:var(--bg);border-radius:var(--radius);margin-bottom:12px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:conic-gradient(${trustColor} ${trustScore}%, var(--border) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <div style="width:52px;height:52px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:${trustColor};">${trustScore}</div>
+            </div>
+            <div>
+                <div style="font-size:14px;font-weight:600;color:${trustColor};">${trustScore >= 80 ? 'Trusted' : trustScore >= 50 ? 'Needs Review' : 'High Risk'}</div>
+                <div style="font-size:12px;color:var(--text-muted);">Based on ${records.length} events</div>
+            </div>
         </div>
     </div>
+
+    <div class="panel-section">
+        <h4>Summary</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+            <div class="detail-section"><div style="font-size:24px;font-weight:700;color:var(--critical);">${criticalCount}</div><div style="font-size:11px;color:var(--text-muted);">Critical</div></div>
+            <div class="detail-section"><div style="font-size:24px;font-weight:700;color:var(--warning);">${warningCount}</div><div style="font-size:11px;color:var(--text-muted);">Warning</div></div>
+            <div class="detail-section"><div style="font-size:24px;font-weight:700;color:var(--primary);">${records.length}</div><div style="font-size:11px;color:var(--text-muted);">Total Events</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span>Failed: <strong style="color:var(--critical);">${failedCount}</strong></span>
+            <span>Permission Changes: <strong style="color:var(--warning);">${permChangeCount}</strong></span>
+            <span>Login-As: <strong style="color:var(--critical);">${loginAsCount}</strong></span>
+        </div>
+    </div>
+
+    ${riskFactors.length > 0 ? `
+    <div class="panel-section">
+        <h4>Risk Factors</h4>
+        ${riskFactors.map(rf =>
+            `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;margin-bottom:4px;background:var(--critical-bg);border-radius:4px;font-size:12px;color:var(--critical);">
+                <span style="width:4px;height:4px;border-radius:50%;background:var(--critical);flex-shrink:0;"></span>
+                ${rf}
+            </div>`
+        ).join('')}
+    </div>` : ''}
+
+    <div class="panel-section">
+        <h4>Activity by Day</h4>
+        <div style="display:flex;flex-direction:column;gap:3px;">${activityBars}</div>
+    </div>
+
     <div class="panel-section">
         <h4>Recent Events</h4>
         ${records.slice(0, 10).map(r =>
@@ -1413,4 +1820,147 @@ async function exportToCSV() {
     a.download = `auditview_report_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// ====== SAVED VIEWS ======
+async function saveCurrentView(name) {
+    const state = {
+        severity: severityFilter.value,
+        category: categoryFilter.value,
+        type: typeFilter.value,
+        userId: userFilter.value,
+        search: searchFilter.value,
+        startDate: startDate.value,
+        endDate: endDate.value,
+        hideNoise: noiseFilter.checked,
+        view: activeView,
+        preset: activePreset
+    };
+    try {
+        const { savedViews = {} } = await chrome.storage.local.get(['savedViews']);
+        savedViews[name] = { state, savedAt: new Date().toISOString() };
+        await chrome.storage.local.set({ savedViews });
+        return true;
+    } catch (e) { return false; }
+}
+
+async function loadSavedView(name) {
+    try {
+        const { savedViews = {} } = await chrome.storage.local.get(['savedViews']);
+        const view = savedViews[name];
+        if (!view) return false;
+        const s = view.state;
+        severityFilter.value = s.severity || '';
+        categoryFilter.value = s.category || '';
+        typeFilter.value = s.type || '';
+        userFilter.value = s.userId || '';
+        userFilterSearch.value = s.userId ? '' : '';
+        searchFilter.value = s.search || '';
+        startDate.value = s.startDate || '';
+        endDate.value = s.endDate || '';
+        noiseFilter.checked = s.hideNoise !== false;
+        if (s.view) {
+            activeView = s.view;
+            document.querySelectorAll('.inv-tab, .nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.inv-tab[data-view="${s.view}"]`)?.classList.add('active');
+            document.querySelector(`.nav-item[data-view="${s.view}"]`)?.classList.add('active');
+        }
+        currentPage = 1;
+        renderCurrentView();
+        return true;
+    } catch (e) { return false; }
+}
+
+async function getSavedViews() {
+    try {
+        const { savedViews = {} } = await chrome.storage.local.get(['savedViews']);
+        return Object.entries(savedViews).map(([name, data]) => ({ name, ...data }));
+    } catch (e) { return []; }
+}
+
+async function deleteSavedView(name) {
+    try {
+        const { savedViews = {} } = await chrome.storage.local.get(['savedViews']);
+        delete savedViews[name];
+        await chrome.storage.local.set({ savedViews });
+        return true;
+    } catch (e) { return false; }
+}
+
+async function populateSavedViews() {
+    const select = document.getElementById('loadViewSelect');
+    if (!select) return;
+    const views = await getSavedViews();
+    select.innerHTML = '<option value="">Saved Views</option>' +
+        views.map(v => `<option value="${v.name}">${v.name} (${new Date(v.savedAt).toLocaleDateString()})</option>`).join('');
+}
+
+// ====== BLAST RADIUS ======
+function calculateBlastRadius(record) {
+    if (!record) return null;
+    const action = (record.Action || '').toLowerCase();
+    const display = record.Display || '';
+
+    // Profile changes: estimate affected users
+    if (action.includes('profile') && (action.includes('perm') || action.includes('olp') || action.includes('fls'))) {
+        const profileMatch = display.match(/profile\s+(.+?)(?:\s|$|change)/i) ||
+                             display.match(/for\s+(.+?)(?:\s|$|,)/i);
+        const profileName = profileMatch ? profileMatch[1] : 'Unknown Profile';
+        const allUserProfiles = allRecords.filter(r =>
+            (r.Action === 'changedprofileforuser' || r.Action === 'changedprofileforusercusttostd') &&
+            (r.Display || '').toLowerCase().includes(profileName.toLowerCase())
+        );
+        const affectedUsers = [...new Set(allUserProfiles.map(r => r.CreatedBy?.Name).filter(Boolean))];
+        return {
+            type: 'profile',
+            target: profileName,
+            affectedUsers: affectedUsers.length || 'Unknown',
+            affectedObjects: [],
+            impact: affectedUsers.length > 50 ? 'High' : affectedUsers.length > 10 ? 'Medium' : 'Low'
+        };
+    }
+
+    // Permission set changes: estimate scope
+    if (action.includes('permset') && (action.includes('assign') || action.includes('enable') || action.includes('disable'))) {
+        const permSetMatch = display.match(/permission\s+set\s+(.+?)(?:\s|$|to)/i) ||
+                             display.match(/for\s+(.+?)(?:\s|$|,)/i);
+        const permSetName = permSetMatch ? permSetMatch[1] : 'Unknown Permission Set';
+        const assignEvents = allRecords.filter(r =>
+            (r.Action === 'PermSetAssign' || r.Action === 'PermSetGroupAssign') &&
+            (r.Display || '').toLowerCase().includes(permSetName.toLowerCase())
+        );
+        const affectedUsers = [...new Set(assignEvents.map(r => r.CreatedBy?.Name).filter(Boolean))];
+        return {
+            type: 'permission-set',
+            target: permSetName,
+            affectedUsers: affectedUsers.length || 'Unknown',
+            affectedObjects: [],
+            impact: affectedUsers.length > 20 ? 'High' : affectedUsers.length > 5 ? 'Medium' : 'Low'
+        };
+    }
+
+    // Login-As: direct user impact
+    if (action.includes('suorgadminlogin') || action.includes('suloginaccessused')) {
+        return {
+            type: 'login-as',
+            target: display.split(' ').slice(0, 3).join(' ') || 'Unknown User',
+            affectedUsers: 1,
+            affectedObjects: [],
+            impact: 'High'
+        };
+    }
+
+    // User activation/deactivation
+    if (action === 'activateduser' || action === 'deactivateduser') {
+        const targetUser = display.match(/user\s+(.+?)(?:\s|$)/i);
+        return {
+            type: 'user-status',
+            target: targetUser ? targetUser[1] : 'Unknown User',
+            affectedUsers: 1,
+            affectedObjects: [],
+            impact: 'Medium'
+        };
+    }
+
+    return null;
 }

@@ -35,6 +35,46 @@
             --shadow-md: 0 4px 8px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);
             --radius: 8px;
             --radius-lg: 12px;
+            --ai-bg: #EEF4FF;
+            --ai-border: #C7D7FE;
+            --ai-text: #3538CD;
+            --ai-badge-bg: #3538CD;
+            --expanded-row: #F9FAFB;
+            --scrollbar-thumb: #E4E7EC;
+            --scrollbar-thumb-hover: #98A2B3;
+            --overlay: rgba(16,24,40,0.5);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0F1117;
+            --surface: #1A1D27;
+            --border: #2D3140;
+            --text: #EDEEF0;
+            --text-secondary: #9CA3AF;
+            --text-muted: #6B7280;
+            --critical: #F87171;
+            --critical-bg: #3B1C1C;
+            --critical-border: #7F1D1D;
+            --warning: #FBBF24;
+            --warning-bg: #3B2E14;
+            --warning-border: #7F6B1A;
+            --info: #60A5FA;
+            --info-bg: #1E2D4A;
+            --info-border: #1E40AF;
+            --success: #34D399;
+            --success-bg: #1A3D2E;
+            --primary: #60A5FA;
+            --primary-hover: #93BBFC;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
+            --ai-bg: #1E2D4A;
+            --ai-border: #1E40AF;
+            --ai-text: #93BBFC;
+            --ai-badge-bg: #60A5FA;
+            --expanded-row: #141824;
+            --scrollbar-thumb: #2D3140;
+            --scrollbar-thumb-hover: #6B7280;
+            --overlay: rgba(0,0,0,0.6);
         }
 
         html, body {
@@ -100,6 +140,16 @@
 
         .org-info .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+        .theme-toggle {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 8px 12px; margin-top: 4px;
+            border: 1px solid var(--border); border-radius: 6px;
+            background: var(--surface); color: var(--text-secondary);
+            cursor: pointer; transition: all 0.15s; font-size: 13px; gap: 6px;
+        }
+        .theme-toggle:hover { background: var(--bg); color: var(--text); }
+        .theme-toggle svg { width: 16px; height: 16px; }
+
         /* Main content */
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -160,17 +210,20 @@
 
         /* AI Insights */
         .ai-panel {
-            background: linear-gradient(135deg, #EEF4FF, #F0F2FF);
+            background: var(--ai-bg);
             border-radius: var(--radius-lg); padding: 16px 20px;
-            border: 1px solid #C7D7FE;
+            border: 1px solid var(--ai-border);
         }
 
         .ai-panel .header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .ai-panel .header h3 { font-size: 14px; font-weight: 600; color: #3538CD; }
-        .ai-panel .header .badge { font-size: 10px; padding: 2px 6px; background: #3538CD; color: #fff; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+        .ai-panel.collapsed .header { margin-bottom: 0; }
+        .ai-panel .header h3 { font-size: 14px; font-weight: 600; color: var(--ai-text); }
+        .ai-panel .header .badge { font-size: 10px; padding: 2px 6px; background: var(--ai-badge-bg); color: #fff; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+        .ai-panel.collapsed #aiChevron { transform: rotate(-90deg); }
         .ai-insights { display: flex; flex-direction: column; gap: 4px; }
-        .ai-insight { font-size: 13px; color: #3538CD; display: flex; align-items: flex-start; gap: 6px; }
-        .ai-insight::before { content: ''; width: 6px; height: 6px; background: #3538CD; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+        .ai-panel.collapsed .ai-insights { display: none; }
+        .ai-insight { font-size: 13px; color: var(--ai-text); display: flex; align-items: flex-start; gap: 6px; }
+        .ai-insight::before { content: ''; width: 6px; height: 6px; background: var(--ai-text); border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
         .ai-insight .tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; margin-left: 6px; flex-shrink: 0; }
         .ai-insight .tag.critical-bg { background: var(--critical-bg); color: var(--critical); }
         .ai-insight .tag.warning-bg { background: var(--warning-bg); color: var(--warning); }
@@ -293,7 +346,7 @@
         }
 
         tbody tr:hover { background: var(--bg); }
-        tbody tr.expanded { background: #F9FAFB; }
+        tbody tr.expanded { background: var(--expanded-row); }
         tbody tr.row-critical { border-left: 2px solid var(--critical); }
         tbody tr.row-warning { border-left: 2px solid var(--warning); }
         tbody tr.row-info { border-left: 2px solid var(--info); }
@@ -343,7 +396,7 @@
         /* Expandable detail row */
         .detail-row { display: none; }
         .detail-row.open { display: table-row; }
-        .detail-cell { padding: 16px 20px; background: #F9FAFB; }
+        .detail-cell { padding: 16px 20px; background: var(--expanded-row); }
 
         .detail-grid {
             display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
@@ -390,7 +443,7 @@
         .side-panel {
             position: fixed; top: 0; right: 0; width: 420px; height: 100vh;
             background: var(--surface); border-left: 1px solid var(--border);
-            box-shadow: -4px 0 12px rgba(0,0,0,0.08); z-index: 100;
+            box-shadow: -4px 0 12px var(--overlay); z-index: 100;
             display: none; flex-direction: column; overflow: hidden;
         }
 
@@ -475,8 +528,8 @@
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
     </style>
 </head>
 <body>
@@ -521,6 +574,10 @@
                     <span class="dot"></span>
                     <span class="url" id="orgUrl">Disconnected</span>
                 </div>
+                <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
             </div>
         </aside>
 
@@ -580,9 +637,11 @@
 
                     <!-- AI Insights -->
                     <div class="ai-panel" id="aiPanel">
-                        <div class="header">
+                        <div class="header" id="aiHeader" style="cursor:pointer;user-select:none;">
                             <h3>AI Security Insights</h3>
                             <span class="badge">BETA</span>
+                            <span id="aiCountSmall" class="count-badge" style="margin-left:auto;">0</span>
+                            <svg id="aiChevron" style="width:18px;height:18px;stroke:var(--ai-text);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform 0.2s;margin-left:4px;" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                         </div>
                         <div class="ai-insights" id="aiInsights">
                             <div class="ai-insight">Loading insights based on current audit data...</div>
@@ -669,6 +728,10 @@
                             </div>
                             <div class="left" style="gap:6px;">
                                 <button class="btn btn-secondary btn-sm" id="exportCSVBtn">Export CSV</button>
+                                <button class="btn btn-secondary btn-sm" id="saveViewBtn">Save View</button>
+                                <select id="loadViewSelect" style="padding:3px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font);color:var(--text-secondary);background:var(--surface);outline:none;max-width:150px;cursor:pointer;">
+                                    <option value="">Saved Views</option>
+                                </select>
                                 <button class="btn btn-secondary btn-sm" id="refreshBtn">Refresh</button>
                             </div>
                         </div>
